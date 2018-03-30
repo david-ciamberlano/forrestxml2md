@@ -1,18 +1,21 @@
 package it.davidlab.prj.forrest2md;
 
+import org.apache.commons.io.input.BOMInputStream;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.boot.CommandLineRunner;
 import org.springframework.boot.SpringApplication;
 import org.springframework.boot.autoconfigure.SpringBootApplication;
 import org.springframework.context.ApplicationContext;
 import org.springframework.context.annotation.Bean;
+import sun.reflect.generics.reflectiveObjects.NotImplementedException;
 
 import javax.xml.namespace.QName;
 import javax.xml.stream.XMLEventReader;
 import javax.xml.stream.XMLInputFactory;
 import javax.xml.stream.XMLStreamConstants;
 import javax.xml.stream.events.*;
-import java.io.BufferedWriter;
-import java.io.FileReader;
+import java.io.*;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
@@ -22,6 +25,8 @@ import java.util.stream.Stream;
 
 @SpringBootApplication
 public class Forrest2mdApplication {
+
+    Logger logger = LoggerFactory.getLogger(Forrest2mdApplication.class);
 
     int sectionLevel = 1;
     boolean insideA = false;
@@ -35,13 +40,26 @@ public class Forrest2mdApplication {
     public CommandLineRunner commandLineRunner(ApplicationContext context) {
         return args -> {
 
+            if (args.length != 2) {
+
+                logger.error("Please provide 2 params: sourceXmlPath destFolderPath");
+                throw new  NotImplementedException ();
+            }
             String xmlPath = args[0];
-            String xmlFileName = args[1];
+            String mdDest = args[1];
 
             StringBuilder mdString = new StringBuilder();
             XMLInputFactory factory = XMLInputFactory.newInstance();
+
+            // Deal with the UTF-8 BOM problem
+            BOMInputStream bomIn = new BOMInputStream(new FileInputStream(xmlPath));
+            if (bomIn.hasBOM()) {
+                logger.error("BOM problem detected... for more details please refer to: https://stackoverflow.com/a/20551721/5857896");
+                return;
+            }
+
             XMLEventReader eventReader =
-                    factory.createXMLEventReader(new FileReader("/Users/david/Desktop/concepts.xml"));
+                    factory.createXMLEventReader( new FileReader(xmlPath) );
 
             eventReader.forEachRemaining(e -> {
                 XMLEvent event = (XMLEvent) e;
@@ -63,6 +81,7 @@ public class Forrest2mdApplication {
                                 break;
 
                             case "p":
+                                mdString.append("\n");
                                 break;
 
                             case "em":
@@ -104,6 +123,8 @@ public class Forrest2mdApplication {
                     }
                     break;
 
+
+
                     case XMLStreamConstants.CHARACTERS:
                         Characters characters = event.asCharacters();
 //                        String text = characters.getData().trim();
@@ -115,6 +136,9 @@ public class Forrest2mdApplication {
                             mdString.append(cleanedText);
                         }
                         break;
+
+
+
 
                     case XMLStreamConstants.END_ELEMENT:
                         EndElement endElement = event.asEndElement();
@@ -152,6 +176,7 @@ public class Forrest2mdApplication {
 
                             case "a":
                                 insideA = false;
+                                link = "";
                                 mdString.append("]").append("(").append(link).append(")");
 
                             case "code":
@@ -167,7 +192,7 @@ public class Forrest2mdApplication {
 
             });
 
-            Path path = Paths.get(xmlFileName + ".md");
+            Path path = Paths.get(mdDest );
 
             try (BufferedWriter writer = Files.newBufferedWriter(path)) {
                 writer.write(mdString.toString());
