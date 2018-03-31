@@ -8,7 +8,6 @@ import org.springframework.boot.SpringApplication;
 import org.springframework.boot.autoconfigure.SpringBootApplication;
 import org.springframework.context.ApplicationContext;
 import org.springframework.context.annotation.Bean;
-import sun.reflect.generics.reflectiveObjects.NotImplementedException;
 
 import javax.xml.namespace.QName;
 import javax.xml.stream.XMLEventReader;
@@ -19,9 +18,7 @@ import java.io.*;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
-import java.util.Iterator;
 import java.util.stream.IntStream;
-import java.util.stream.Stream;
 
 @SpringBootApplication
 public class Forrest2mdApplication {
@@ -41,10 +38,10 @@ public class Forrest2mdApplication {
         return args -> {
 
             if (args.length != 2) {
-
-                logger.error("Please provide 2 params: sourceXmlPath destFolderPath");
-                throw new  NotImplementedException ();
+                logger.error("usage: <forrest2md> \"source-xml-path\" \"dest-md-path\"");
+                return;
             }
+
             String xmlPath = args[0];
             String mdDest = args[1];
 
@@ -54,12 +51,13 @@ public class Forrest2mdApplication {
             // Deal with the UTF-8 BOM problem
             BOMInputStream bomIn = new BOMInputStream(new FileInputStream(xmlPath));
             if (bomIn.hasBOM()) {
-                logger.error("BOM problem detected... for more details please refer to: https://stackoverflow.com/a/20551721/5857896");
+                logger.error("UTF-8 BOM detected... for more details please refer to: https://stackoverflow.com/a/20551721/5857896");
                 return;
             }
 
-            XMLEventReader eventReader =
-                    factory.createXMLEventReader( new FileReader(xmlPath) );
+            XMLEventReader eventReader = factory.createXMLEventReader( new FileReader(xmlPath) );
+
+            logger.info("Start processing the file: " + xmlPath);
 
             eventReader.forEachRemaining(e -> {
                 XMLEvent event = (XMLEvent) e;
@@ -192,10 +190,16 @@ public class Forrest2mdApplication {
 
             });
 
-            Path path = Paths.get(mdDest );
+            logger.info("Conversion completed");
+
+            Path path = Paths.get(mdDest);
 
             try (BufferedWriter writer = Files.newBufferedWriter(path)) {
                 writer.write(mdString.toString());
+                logger.info("Markdown saved: " + mdDest);
+            }
+            catch (IOException e) {
+                logger.error("Error in saving the md file");
             }
 
         };
