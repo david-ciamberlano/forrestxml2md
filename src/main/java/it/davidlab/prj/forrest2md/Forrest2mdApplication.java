@@ -38,7 +38,7 @@ public class Forrest2mdApplication {
         return args -> {
 
             if (args.length != 2) {
-                logger.error("usage: <forrest2md> \"source-xml-path\" \"dest-md-path\"");
+                logger.error("usage: <forrest2md>  \"/path/to/source.xml\" \"/path/to/dest.md\"");
                 return;
             }
 
