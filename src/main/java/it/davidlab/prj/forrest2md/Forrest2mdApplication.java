@@ -133,10 +133,6 @@ public class Forrest2mdApplication {
                             mdString.append("**");
                             break;
 
-                        case "br":
-                            mdString.append("\n");
-                            break;
-
                         case "figure":
                             String src = startElement.getAttributeByName(new QName("src")).getValue();
                             String alt = startElement.getAttributeByName(new QName("alt")).getValue();
@@ -216,6 +212,10 @@ public class Forrest2mdApplication {
 
                         case "code":
                             mdString.append("`");
+                            break;
+
+                        case "br":
+                            mdString.append("<br/>");
                             break;
 
                     }
