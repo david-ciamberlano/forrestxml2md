@@ -30,6 +30,7 @@ import javax.xml.namespace.QName;
 import javax.xml.stream.XMLEventReader;
 import javax.xml.stream.XMLInputFactory;
 import javax.xml.stream.XMLStreamConstants;
+import javax.xml.stream.XMLStreamException;
 import javax.xml.stream.events.*;
 import java.io.*;
 import java.nio.file.Files;
@@ -42,8 +43,8 @@ public class Forrest2mdApplication {
 
     Logger logger = LoggerFactory.getLogger(Forrest2mdApplication.class);
 
-    int sectionLevel = 1;
-    boolean insideA = false;
+    private int sectionLevel = 1;
+    private boolean insideA = false;
     String link = "";
 
     public static void main(String[] args) {
@@ -62,9 +63,6 @@ public class Forrest2mdApplication {
             String xmlPath = args[0];
             String mdDest = args[1];
 
-            StringBuilder mdString = new StringBuilder();
-            XMLInputFactory factory = XMLInputFactory.newInstance();
-
             // Deal with the UTF-8 BOM problem
             BOMInputStream bomIn = new BOMInputStream(new FileInputStream(xmlPath));
             if (bomIn.hasBOM()) {
@@ -72,142 +70,8 @@ public class Forrest2mdApplication {
                 return;
             }
 
-            XMLEventReader eventReader = factory.createXMLEventReader( new FileReader(xmlPath) );
 
-            logger.info("Start processing the file: " + xmlPath);
-
-            eventReader.forEachRemaining(e -> {
-                XMLEvent event = (XMLEvent) e;
-
-                switch (event.getEventType()) {
-
-                    case XMLStreamConstants.START_ELEMENT: {
-                        StartElement startElement = event.asStartElement();
-                        String qName = startElement.getName().getLocalPart().toLowerCase();
-                        switch (qName) {
-                            case "section":
-                                sectionLevel++;
-                                break;
-
-                            case "title":
-                                mdString.append("\n");
-                                IntStream.range(0, sectionLevel).forEach(i -> mdString.append('#'));
-                                mdString.append(" ");
-                                break;
-
-                            case "p":
-                                mdString.append("\n");
-                                break;
-
-                            case "em":
-                                mdString.append("_");
-                                break;
-
-                            case "ul":
-                                break;
-
-                            case "li":
-                                mdString.append("* ");
-                                break;
-
-                            case "strong":
-                                mdString.append("**");
-                                break;
-
-                            case "br":
-                                mdString.append("\n");
-                                break;
-
-                            case "figure":
-                                String src = startElement.getAttributeByName(new QName("src")).getValue();
-                                String alt = startElement.getAttributeByName(new QName("alt")).getValue();
-
-                                mdString.append("![").append(alt).append("](").append(src).append(")");
-                                break;
-
-                            case "a":
-                                insideA = true;
-                                link = startElement.getAttributeByName(new QName("href")).getValue();
-                                mdString.append("[");
-                                break;
-
-                            case "code":
-                                mdString.append("`");
-                                break;
-                        }
-                    }
-                    break;
-
-
-
-                    case XMLStreamConstants.CHARACTERS:
-                        Characters characters = event.asCharacters();
-//                        String text = characters.getData().trim();
-                        String text = characters.getData();
-                        String cleanedText = text
-                                .replaceAll("[ \\t]{2,}", " ")
-                                .replaceAll("[\\n]+", "");
-                        if (!cleanedText.trim().isEmpty()) {
-                            mdString.append(cleanedText);
-                        }
-                        break;
-
-
-
-
-                    case XMLStreamConstants.END_ELEMENT:
-                        EndElement endElement = event.asEndElement();
-
-                        String qName = endElement.getName().getLocalPart().toLowerCase();
-
-                        switch (qName) {
-
-                            case "section":
-                                sectionLevel--;
-                                break;
-
-                            case "title":
-                                mdString.append("\n");
-                                break;
-
-                            case "p":
-                                mdString.append("\n");
-                                break;
-
-                            case "em":
-                                mdString.append("_");
-                                break;
-
-                            case "ul":
-                                break;
-
-                            case "li":
-                                mdString.append("\n");
-                                break;
-
-                            case "strong":
-                                mdString.append("**");
-                                break;
-
-                            case "a":
-                                insideA = false;
-                                link = "";
-                                mdString.append("]").append("(").append(link).append(")");
-
-                            case "code":
-                                mdString.append("`");
-                                break;
-
-                        }
-                        break;
-
-
-                }
-
-
-            });
-
-            logger.info("Conversion completed");
+            StringBuilder mdString = convert2md(xmlPath);
 
             Path path = Paths.get(mdDest);
 
@@ -220,6 +84,148 @@ public class Forrest2mdApplication {
             }
 
         };
+    }
+
+    private StringBuilder convert2md(String xmlPath) throws XMLStreamException, FileNotFoundException {
+        XMLInputFactory factory = XMLInputFactory.newInstance();
+        XMLEventReader eventReader = factory.createXMLEventReader( new FileReader(xmlPath) );
+
+        logger.info("Start processing the file: " + xmlPath);
+
+        StringBuilder mdString = new StringBuilder();
+
+        eventReader.forEachRemaining(e -> {
+            XMLEvent event = (XMLEvent) e;
+
+            switch (event.getEventType()) {
+
+                // Start elements
+                case XMLStreamConstants.START_ELEMENT: {
+                    StartElement startElement = event.asStartElement();
+                    String qName = startElement.getName().getLocalPart().toLowerCase();
+                    switch (qName) {
+                        case "section":
+                            sectionLevel++;
+                            break;
+
+                        case "title":
+                            mdString.append("\n");
+                            IntStream.range(0, sectionLevel).forEach(i -> mdString.append('#'));
+                            mdString.append(" ");
+                            break;
+
+                        case "p":
+                            mdString.append("\n");
+                            break;
+
+                        case "em":
+                            mdString.append("_");
+                            break;
+
+                        case "ul":
+                            break;
+
+                        case "li":
+                            mdString.append("* ");
+                            break;
+
+                        case "strong":
+                            mdString.append("**");
+                            break;
+
+                        case "br":
+                            mdString.append("\n");
+                            break;
+
+                        case "figure":
+                            String src = startElement.getAttributeByName(new QName("src")).getValue();
+                            String alt = startElement.getAttributeByName(new QName("alt")).getValue();
+
+                            mdString.append("![").append(alt).append("](").append(src).append(")");
+                            break;
+
+                        case "a":
+                            insideA = true;
+                            link = startElement.getAttributeByName(new QName("href")).getValue();
+                            mdString.append("[");
+                            break;
+
+                        case "code":
+                            mdString.append("`");
+                            break;
+                    }
+                }
+                break;
+
+
+                // content
+                case XMLStreamConstants.CHARACTERS:
+                    Characters characters = event.asCharacters();
+//                        String text = characters.getData().trim();
+                    String text = characters.getData();
+                    String cleanedText = text
+                            .replaceAll("[ \\t]{2,}", " ")
+                            .replaceAll("[\\n]+", "");
+                    if (!cleanedText.trim().isEmpty()) {
+                        mdString.append(cleanedText);
+                    }
+                    break;
+
+
+
+                // End elements
+                case XMLStreamConstants.END_ELEMENT:
+                    EndElement endElement = event.asEndElement();
+
+                    String qName = endElement.getName().getLocalPart().toLowerCase();
+
+                    switch (qName) {
+
+                        case "section":
+                            sectionLevel--;
+                            break;
+
+                        case "title":
+                            mdString.append("\n");
+                            break;
+
+                        case "p":
+                            mdString.append("\n");
+                            break;
+
+                        case "em":
+                            mdString.append("_");
+                            break;
+
+                        case "ul":
+                            break;
+
+                        case "li":
+                            mdString.append("\n");
+                            break;
+
+                        case "strong":
+                            mdString.append("**");
+                            break;
+
+                        case "a":
+                            insideA = false;
+                            mdString.append("](").append(link).append(")");
+                            link = "";
+                            break;
+
+                        case "code":
+                            mdString.append("`");
+                            break;
+
+                    }
+                    break;
+            }
+
+        });// End of process
+
+        logger.info("Conversion completed");
+        return mdString;
     }
 
 

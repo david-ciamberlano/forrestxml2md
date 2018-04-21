@@ -10,8 +10,7 @@ import org.springframework.test.context.junit4.SpringRunner;
 public class Forrest2mdApplicationTests {
 
 	@Test
-	public void contextLoads() {
-
+	public void testConvert2md() {
 
 	}
 
