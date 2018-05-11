@@ -45,6 +45,7 @@ public class Forrest2mdApplication {
 
     private int sectionLevel = 1;
     private boolean insideA = false;
+    private int listItemCount = 0;
     String link = "";
 
     public static void main(String[] args) {
@@ -123,10 +124,19 @@ public class Forrest2mdApplication {
                             break;
 
                         case "ul":
+                            // reset the counter
+                            listItemCount = 0;
                             break;
 
                         case "li":
-                            mdString.append("* ");
+                            listItemCount++;
+                            if(listItemCount==1) {
+                                //first item
+                                mdString.append("\n* ");
+                            }
+                            else {
+                                mdString.append("* ");
+                            }
                             break;
 
                         case "strong":
