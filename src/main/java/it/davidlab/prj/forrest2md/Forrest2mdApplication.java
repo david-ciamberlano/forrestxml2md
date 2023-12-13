@@ -44,7 +44,6 @@ public class Forrest2mdApplication {
     Logger logger = LoggerFactory.getLogger(Forrest2mdApplication.class);
 
     private int sectionLevel = 1;
-    private boolean insideA = false;
     private int listItemCount = 0;
     String link = "";
 
@@ -65,7 +64,7 @@ public class Forrest2mdApplication {
             String mdDest = args[1];
 
             // Deal with the UTF-8 BOM problem
-            BOMInputStream bomIn = new BOMInputStream(new FileInputStream(xmlPath));
+            BOMInputStream bomIn = BOMInputStream.builder().setFile(new File(xmlPath)).get();
             if (bomIn.hasBOM()) {
                 logger.error("UTF-8 BOM detected... for more details please refer to: https://stackoverflow.com/a/20551721/5857896");
                 return;
@@ -151,7 +150,6 @@ public class Forrest2mdApplication {
                             break;
 
                         case "a":
-                            insideA = true;
                             link = startElement.getAttributeByName(new QName("href")).getValue();
                             mdString.append("[");
                             break;
@@ -167,7 +165,6 @@ public class Forrest2mdApplication {
                 // content
                 case XMLStreamConstants.CHARACTERS:
                     Characters characters = event.asCharacters();
-//                        String text = characters.getData().trim();
                     String text = characters.getData();
                     String cleanedText = text
                             .replaceAll("[ \\t]{2,}", " ")
@@ -215,7 +212,6 @@ public class Forrest2mdApplication {
                             break;
 
                         case "a":
-                            insideA = false;
                             mdString.append("](").append(link).append(")");
                             link = "";
                             break;
